@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createSupabaseServerClient } from "@/lib/supabase";
 import { z } from "zod";
-import { cookies } from "next/headers";
 
 const signupSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -13,10 +13,29 @@ const signupSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createSupabaseServerClient();
     const body = await request.json();
     const { email, name, phone, role, documents } = signupSchema.parse(body);
 
-    // Check if user already exists
+    // Get the current user from Supabase session
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // Verify the email matches
+    if (user.email !== email) {
+      return NextResponse.json(
+        { error: "Email mismatch" },
+        { status: 400 }
+      );
+    }
+
+    // Check if user profile already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -32,16 +51,8 @@ export async function POST(request: NextRequest) {
           verificationDocuments: documents
             ? { files: documents }
             : existingUser.verificationDocuments,
+          verificationStatus: role === "OWNER" ? "PENDING" : existingUser.verificationStatus,
         },
-      });
-
-      // Set session
-      const cookieStore = await cookies();
-      cookieStore.set("user_id", updatedUser.id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
       });
 
       return NextResponse.json(
@@ -58,8 +69,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create new user
-    const user = await prisma.user.create({
+    // Create new user profile
+    const newUser = await prisma.user.create({
       data: {
         email,
         name,
@@ -70,23 +81,63 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Set session
-    const cookieStore = await cookies();
-    cookieStore.set("user_id", user.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+    return NextResponse.json(
+      {
+        message: "Account created successfully",
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          role: newUser.role,
+          name: newUser.name,
+        },
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.errors[0].message },
+        { status: 400 }
+      );
+    }
+
+    console.error("Error creating account:", error);
+    return NextResponse.json(
+      { error: "Failed to create account" },
+      { status: 500 }
+    );
+  }
+}
+            id: updatedUser.id,
+            email: updatedUser.email,
+            role: updatedUser.role,
+            name: updatedUser.name,
+          },
+        },
+        { status: 200 }
+      );
+    }
+
+    // Create new user profile
+    const newUser = await prisma.user.create({
+      data: {
+        email,
+        name,
+        phone,
+        role,
+        verificationDocuments: documents ? { files: documents } : undefined,
+        verificationStatus: role === "OWNER" ? "PENDING" : undefined,
+      },
     });
 
     return NextResponse.json(
       {
         message: "Account created successfully",
         user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          name: user.name,
+          id: newUser.id,
+          email: newUser.email,
+          role: newUser.role,
+          name: newUser.name,
         },
       },
       { status: 201 }

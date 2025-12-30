@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Upload, X, Loader2 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import OTPVerification from "./OTPVerification";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 interface SignUpModalProps {
@@ -48,17 +49,30 @@ export default function SignUpModal({ isOpen, onClose }: SignUpModalProps) {
     setIsLoading(true);
 
     try {
-      // First, send OTP
-      const response = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: formData.email }),
+      // Basic validation
+      if (formData.password !== formData.confirmPassword) {
+        throw new Error("Passwords do not match");
+      }
+
+      if (formData.password.length < 6) {
+        throw new Error("Password must be at least 6 characters");
+      }
+
+      // Send OTP via Supabase
+      const { error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            name: formData.name,
+            phone: formData.phone,
+            role: isOwner ? "OWNER" : "CUSTOMER",
+          },
+        },
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to send OTP");
+      if (error) {
+        throw error;
       }
 
       // Move to OTP verification step
@@ -75,21 +89,42 @@ export default function SignUpModal({ isOpen, onClose }: SignUpModalProps) {
     setError("");
 
     try {
-      // Verify OTP
-      const verifyResponse = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: formData.email, code }),
+      const { error } = await supabase.auth.verifyOtp({
+        email: formData.email,
+        token: code,
+        type: 'signup',
       });
 
-      const verifyData = await verifyResponse.json();
-
-      if (!verifyResponse.ok) {
-        throw new Error(verifyData.error || "Invalid OTP");
+      if (error) {
+        throw error;
       }
 
-      // Create user account with additional details
-      const signupResponse = await fetch("/api/auth/signup", {
+      // Upload documents to Supabase Storage if owner
+      let documentUrls: string[] = [];
+      if (isOwner && documents.length > 0) {
+        for (const doc of documents) {
+          const fileExt = doc.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+          const filePath = `verification-documents/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('documents')
+            .upload(filePath, doc);
+
+          if (uploadError) {
+            throw new Error(`Failed to upload ${doc.name}: ${uploadError.message}`);
+          }
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('documents')
+            .getPublicUrl(filePath);
+
+          documentUrls.push(publicUrl);
+        }
+      }
+
+      // After successful verification, create user profile in our database
+      const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -97,11 +132,11 @@ export default function SignUpModal({ isOpen, onClose }: SignUpModalProps) {
           name: formData.name,
           phone: formData.phone,
           role: isOwner ? "OWNER" : "CUSTOMER",
-          documents: isOwner ? documents.map((d) => d.name) : undefined,
+          documents: documentUrls,
         }),
       });
 
-      if (!signupResponse.ok) {
+      if (!response.ok) {
         throw new Error("Failed to create account");
       }
 
@@ -118,14 +153,13 @@ export default function SignUpModal({ isOpen, onClose }: SignUpModalProps) {
   const handleResendOTP = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: formData.email }),
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: formData.email,
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to resend OTP");
+      if (error) {
+        throw error;
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to resend OTP");

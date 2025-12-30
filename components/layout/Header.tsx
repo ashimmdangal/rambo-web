@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import SignUpModal from "@/components/auth/SignUpModal";
 import SignInModal from "@/components/auth/SignInModal";
+import { useAuth } from "@/lib/auth-context";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,6 +14,15 @@ export default function Header() {
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const pathname = usePathname();
+  const { user, signOut } = useAuth();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -67,18 +77,37 @@ export default function Header() {
 
           {/* Auth - Right */}
           <div className="flex items-center space-x-4 z-10">
-            <button
-              onClick={() => setIsSignInOpen(true)}
-              className="text-sm font-medium text-foreground hover:text-accent transition-colors hidden sm:block"
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => setIsSignUpOpen(true)}
-              className="px-6 py-2.5 text-sm font-semibold text-primary bg-accent hover:bg-accent/90 rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
-            >
-              Sign Up
-            </button>
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <Link
+                  href="/dashboard"
+                  className="text-sm font-medium text-foreground hover:text-accent transition-colors hidden sm:block"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  onClick={signOut}
+                  className="text-sm font-medium text-foreground hover:text-accent transition-colors hidden sm:block"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => setIsSignInOpen(true)}
+                  className="text-sm font-medium text-foreground hover:text-accent transition-colors hidden sm:block"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => setIsSignUpOpen(true)}
+                  className="px-6 py-2.5 text-sm font-semibold text-primary bg-accent hover:bg-accent/90 rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                  Sign Up
+                </button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -131,24 +160,47 @@ export default function Header() {
                 Buy
               </Link>
               <div className="pt-4 border-t border-border/40 space-y-3">
-                <button
-                  onClick={() => {
-                    setIsSignInOpen(true);
-                    setIsMenuOpen(false);
-                  }}
-                  className="block w-full text-left text-base font-medium text-foreground hover:text-accent transition-colors"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => {
-                    setIsSignUpOpen(true);
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full px-4 py-2.5 text-sm font-semibold text-center text-primary bg-accent hover:bg-accent/90 rounded-md transition-colors"
-                >
-                  Sign Up
-                </button>
+                {user ? (
+                  <>
+                    <Link
+                      href="/dashboard"
+                      className="block text-base font-medium text-foreground hover:text-accent transition-colors"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                    <button
+                      onClick={() => {
+                        signOut();
+                        setIsMenuOpen(false);
+                      }}
+                      className="block w-full text-left text-base font-medium text-foreground hover:text-accent transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setIsSignInOpen(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="block w-full text-left text-base font-medium text-foreground hover:text-accent transition-colors"
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsSignUpOpen(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-2.5 text-sm font-semibold text-center text-primary bg-accent hover:bg-accent/90 rounded-md transition-colors"
+                    >
+                      Sign Up
+                    </button>
+                  </>
+                )}
               </div>
             </nav>
           </div>

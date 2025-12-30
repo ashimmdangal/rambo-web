@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "../styles/globals.css";
 import ConditionalHeader from "@/components/layout/ConditionalHeader";
+import { AuthProvider } from "@/lib/auth-context";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -28,8 +29,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body className="font-sans antialiased">
-        <ConditionalHeader />
-        <main className="pt-20">{children}</main>
+        <AuthProvider>
+          <ConditionalHeader />
+          <main className="pt-20">{children}</main>
+        </AuthProvider>
       </body>
     </html>
   );

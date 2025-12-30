@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import OTPVerification from "./OTPVerification";
+import { supabase } from "@/lib/supabase";
 
 interface SignInModalProps {
   isOpen: boolean;
@@ -31,16 +32,15 @@ export default function SignInModal({
     setError("");
 
     try {
-      const response = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false, // Only allow existing users to sign in
+        },
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to send OTP");
+      if (error) {
+        throw error;
       }
 
       setStep("otp");
@@ -56,16 +56,14 @@ export default function SignInModal({
     setError("");
 
     try {
-      const response = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code }),
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'email',
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Invalid OTP");
+      if (error) {
+        throw error;
       }
 
       // Success - close modal and refresh
