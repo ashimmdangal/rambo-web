@@ -1,0 +1,299 @@
+// Rambo Real Estate Marketplace - Database Schema
+// PostgreSQL with Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+enum UserRole {
+  CUSTOMER
+  OWNER
+}
+
+model OTP {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([code])
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  phone     String?
+  role      UserRole @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Owner-specific fields
+  verificationStatus VerificationStatus @default(PENDING)
+  verificationDocuments Json? // Store document URLs/metadata
+  verifiedAt          DateTime?
+
+  // Relations
+  ownedProperties Property[]     @relation("PropertyOwner")
+  bookmarks       Bookmark[]
+  conversationsAsParticipant1 Conversation[] @relation("Participant1")
+  conversationsAsParticipant2 Conversation[] @relation("Participant2")
+  sentMessages    Message[]
+  bookingsAsCustomer Booking[]   @relation("BookingCustomer")
+  bookingsAsOwner Booking[]       @relation("BookingOwner")
+  revenue         Revenue[]
+  ratingsGiven    Rating[]        @relation("Rater")
+  ratingsReceived Rating[]        @relation("Rated")
+
+  @@index([email])
+  @@index([role])
+}
+
+// ============================================
+// PROPERTIES
+// ============================================
+
+enum PropertyType {
+  HOUSE
+  APARTMENT
+  ROOM
+  VILLA
+}
+
+enum PropertyCategory {
+  RENT
+  BUY
+}
+
+enum PropertyStatus {
+  AVAILABLE
+  RENTED
+  BOUGHT
+}
+
+model Property {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @db.Text
+  type        PropertyType
+  category    PropertyCategory // RENT or BUY
+  status      PropertyStatus   @default(AVAILABLE)
+
+  // Location
+  address     String
+  city        String
+  state       String?
+  country     String
+  zipCode     String?
+  latitude    Float?
+  longitude   Float?
+
+  // Pricing
+  price       Float
+  currency    String   @default("USD")
+
+  // Media
+  images      String[] // Array of image URLs
+  videos      String[] // Array of video URLs
+
+  // Details
+  bedrooms    Int?
+  bathrooms   Int?
+  area        Float?   // Square feet/meters
+  yearBuilt   Int?
+  amenities   String[] // e.g., ["Parking", "Gym", "Pool"]
+
+  // Relations
+  ownerId     String
+  owner       User     @relation("PropertyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  bookmarks   Bookmark[]
+  conversations Conversation[]
+  bookings    Booking[]
+  revenue     Revenue[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([category])
+  @@index([type])
+  @@index([status])
+  @@index([city])
+  @@index([latitude, longitude])
+}
+
+// ============================================
+// BOOKMARKS
+// ============================================
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyId String
+  property  Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, propertyId])
+  @@index([userId])
+  @@index([propertyId])
+}
+
+// ============================================
+// CONVERSATIONS & MESSAGING
+// ============================================
+
+model Conversation {
+  id           String   @id @default(cuid())
+  participant1Id String
+  participant1 User     @relation("Participant1", fields: [participant1Id], references: [id], onDelete: Cascade)
+  participant2Id String
+  participant2 User     @relation("Participant2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  propertyId   String?  // Optional: conversation about a specific property
+  property     Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  messages     Message[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([participant1Id, participant2Id, propertyId])
+  @@index([participant1Id])
+  @@index([participant2Id])
+  @@index([propertyId])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content        String?  @db.Text // Text content (nullable if only attachments)
+  attachments    Json?    // Array of attachment objects: {type, url, name, size}
+  readAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+// ============================================
+// BOOKINGS & TRANSACTIONS
+// ============================================
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+}
+
+model Booking {
+  id            String   @id @default(cuid())
+  propertyId    String
+  property      Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  customerId    String
+  customer      User     @relation("BookingCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  ownerId       String
+  owner         User     @relation("BookingOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  
+  // Booking details
+  type          PropertyCategory // RENT or BUY
+  status        BookingStatus    @default(PENDING)
+  paymentStatus PaymentStatus    @default(PENDING)
+  
+  // For RENT: online payment
+  paymentAmount Float?
+  paymentDate   DateTime?
+  paymentMethod String?  // e.g., "stripe", "card"
+  paymentIntentId String? // Stripe payment intent ID
+  
+  // For BUY: physical meetup
+  meetingDate   DateTime?
+  meetingLocation String?
+  meetingNotes  String?  @db.Text
+  
+  // Deal completion
+  completedAt   DateTime?
+  ratings       Rating[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([customerId])
+  @@index([ownerId])
+  @@index([status])
+  @@index([type])
+}
+
+// ============================================
+// RATINGS & REVIEWS
+// ============================================
+
+model Rating {
+  id        String   @id @default(cuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  raterId   String   // User who gave the rating
+  rater     User     @relation("Rater", fields: [raterId], references: [id], onDelete: Cascade)
+  ratedId   String   // User who received the rating
+  rated     User     @relation("Rated", fields: [ratedId], references: [id], onDelete: Cascade)
+  rating    Int      // 1-5 stars
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@unique([bookingId, raterId]) // One rating per booking per user
+  @@index([bookingId])
+  @@index([raterId])
+  @@index([ratedId])
+}
+
+// ============================================
+// REVENUE & ANALYTICS
+// ============================================
+
+model Revenue {
+  id             String   @id @default(cuid())
+  ownerId        String
+  owner          User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  propertyId     String
+  property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  bookingId      String?  // Optional reference to booking
+  amount         Float
+  currency       String   @default("USD")
+  type           PropertyCategory // RENT or BUY
+  transactionDate DateTime @default(now())
+  description    String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([propertyId])
+  @@index([transactionDate])
+  @@index([type])
+}
+
