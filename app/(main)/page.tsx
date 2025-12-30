@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search, MapPin } from "lucide-react";
-import PropertyCard from "@/components/property/PropertyCard";
 import SignUpModal from "@/components/auth/SignUpModal";
+import PropertySection from "@/components/property/PropertySection";
 import { filterPropertiesByCategory } from "@/lib/validations";
 
 // Mock data - Replace with actual data from Prisma
@@ -148,31 +148,11 @@ export default function Home() {
     loadBookmarks();
   }, []);
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-      },
-    },
-  };
 
   return (
-    <>
+    <div className="pt-32">
       {/* Hero Section */}
-      <section className="relative h-[calc(100vh-5rem)] flex items-center justify-center overflow-hidden -mt-20">
+      <section className="relative h-[calc(100vh-5rem)] flex items-center justify-center overflow-hidden -mt-32">
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 z-0">
           <div
@@ -182,7 +162,7 @@ export default function Home() {
                 "url(https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1920&q=80)",
             }}
           />
-          <div className="absolute inset-0 bg-black/60" />
+          <div className="absolute inset-0 bg-black/80" />
         </div>
 
         {/* Hero Content */}
@@ -245,78 +225,26 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Available for Rent Section */}
-      <section className="py-20 bg-background">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
-            variants={containerVariants}
-          >
-            <motion.div variants={itemVariants} className="mb-12">
-              <h2 className="text-5xl font-display font-bold text-primary mb-4">
-                Available for Rent
-              </h2>
-              <p className="text-lg text-muted-foreground">
-                Discover premium rental properties
-              </p>
-            </motion.div>
+      {/* Available for Rent Section - All types allowed */}
+      <PropertySection
+        title="Available for Rent"
+        description="Discover premium rental properties - Rooms, Houses, Apartments, and Villas"
+        properties={filteredRent}
+        bookmarkedIds={bookmarkedIds}
+        bgColor="bg-background"
+      />
 
-            <motion.div
-              variants={containerVariants}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-            >
-              {filteredRent.map((property) => (
-                <motion.div key={property.id} variants={itemVariants}>
-                  <PropertyCard
-                    {...property}
-                    isBookmarked={bookmarkedIds.has(property.id)}
-                  />
-                </motion.div>
-              ))}
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Available for Purchase Section */}
-      <section className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
-            variants={containerVariants}
-          >
-            <motion.div variants={itemVariants} className="mb-12">
-              <h2 className="text-5xl font-display font-bold text-primary mb-4">
-                Available for Purchase
-              </h2>
-              <p className="text-lg text-muted-foreground">
-                Invest in your dream property
-              </p>
-            </motion.div>
-
-            <motion.div
-              variants={containerVariants}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-            >
-              {filteredBuy.map((property) => (
-                <motion.div key={property.id} variants={itemVariants}>
-                  <PropertyCard
-                    {...property}
-                    isBookmarked={bookmarkedIds.has(property.id)}
-                  />
-                </motion.div>
-              ))}
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
+      {/* Available for Purchase Section - Only Houses and Apartments */}
+      <PropertySection
+        title="Available for Purchase"
+        description="Invest in your dream property - Houses and Apartments only"
+        properties={filteredBuy}
+        bookmarkedIds={bookmarkedIds}
+        bgColor="bg-muted/30"
+      />
 
       {/* Sign Up Modal */}
       <SignUpModal isOpen={isSignUpOpen} onClose={() => setIsSignUpOpen(false)} />
-    </>
+    </div>
   );
 }
