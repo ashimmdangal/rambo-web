@@ -204,7 +204,7 @@ export default function Home() {
                 </div>
 
                 {/* Search Input */}
-                <div className="relative flex-2">
+                <div className="relative flex-[2]">
                   <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <input
                     type="text"

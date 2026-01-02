@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Upload, X, Loader2 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import OTPVerification from "./OTPVerification";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase-client";
 import { cn } from "@/lib/utils";
 
 interface SignUpModalProps {
@@ -108,7 +108,7 @@ export default function SignUpModal({ isOpen, onClose }: SignUpModalProps) {
           const filePath = `verification-documents/${fileName}`;
 
           const { error: uploadError } = await supabase.storage
-            .from('documents')
+            .from('apitemp')
             .upload(filePath, doc);
 
           if (uploadError) {
@@ -116,7 +116,7 @@ export default function SignUpModal({ isOpen, onClose }: SignUpModalProps) {
           }
 
           const { data: { publicUrl } } = supabase.storage
-            .from('documents')
+            .from('apitemp')
             .getPublicUrl(filePath);
 
           documentUrls.push(publicUrl);

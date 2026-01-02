@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import OTPVerification from "./OTPVerification";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase-client";
 
 interface SignInModalProps {
   isOpen: boolean;

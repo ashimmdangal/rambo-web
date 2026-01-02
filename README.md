@@ -92,7 +92,7 @@ The Prisma schema (`prisma/schema.prisma`) includes:
 
 3. **Set up Supabase Storage**
    - In your Supabase dashboard, go to Storage
-   - Create a new bucket called `documents`
+   - Create a new bucket called `apitemp`
    - Set it to public (for document access)
    - Configure RLS policies as needed
 

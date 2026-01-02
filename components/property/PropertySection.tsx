@@ -68,19 +68,27 @@ export default function PropertySection({
             <p className="text-lg text-muted-foreground">{description}</p>
           </motion.div>
 
-          <motion.div
-            variants={containerVariants}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-          >
-            {properties.map((property) => (
-              <motion.div key={property.id} variants={itemVariants}>
-                <PropertyCard
-                  {...property}
-                  isBookmarked={bookmarkedIds.has(property.id)}
-                />
-              </motion.div>
-            ))}
-          </motion.div>
+          {properties.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-lg text-muted-foreground">
+                No properties available at the moment.
+              </p>
+            </div>
+          ) : (
+            <motion.div
+              variants={containerVariants}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+            >
+              {properties.map((property) => (
+                <motion.div key={property.id} variants={itemVariants}>
+                  <PropertyCard
+                    {...property}
+                    isBookmarked={bookmarkedIds.has(property.id)}
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
         </motion.div>
       </div>
     </section>
