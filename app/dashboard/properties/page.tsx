@@ -74,7 +74,7 @@ export default function PropertiesPage() {
           <div className="text-center py-12">
             <Home className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <p className="text-lg text-muted-foreground mb-4">
-              You haven't listed any properties yet.
+              You have not listed any properties yet.
             </p>
             <Link
               href="/dashboard"

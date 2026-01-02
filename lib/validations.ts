@@ -30,7 +30,7 @@ export const ALLOWED_TYPES_BY_CATEGORY = {
  * Get allowed property types for a given category
  */
 export function getAllowedTypes(category: "RENT" | "BUY"): string[] {
-  return ALLOWED_TYPES_BY_CATEGORY[category] as string[];
+  return [...ALLOWED_TYPES_BY_CATEGORY[category]];
 }
 
 /**

@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
         conversationId,
         senderId: userId,
         content: content || null,
-        attachments: attachments ? attachments : null,
+        attachments: attachments ? attachments : undefined,
       },
       include: {
         sender: {
